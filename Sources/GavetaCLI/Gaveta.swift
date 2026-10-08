@@ -7,7 +7,7 @@ struct Gaveta: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "gaveta",
         abstract: "Share specific folders with AI agents through MCP.",
-        subcommands: [Add.self, Remove.self, List.self, Pause.self, Resume.self, Mcp.self, Config.self]
+        subcommands: [Add.self, Remove.self, List.self, Pause.self, Resume.self, Mcp.self, Config.self, Install.self, Uninstall.self]
     )
 }
 

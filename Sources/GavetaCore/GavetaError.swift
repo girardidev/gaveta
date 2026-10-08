@@ -21,9 +21,18 @@ public enum GavetaError: Error, Equatable, LocalizedError, Sendable {
     case binaryFile(String)
     case invalidArgument(String)
     case readFailed(String)
+    case needsAdministrator(command: String)
+    case notASymlink(String)
+    case installFailed(String)
 
     public var errorDescription: String? {
         switch self {
+        case .needsAdministrator(let command):
+            "Permission denied. Run it with administrator rights:\n  \(command)"
+        case .notASymlink(let path):
+            "\(path) exists and is not a symbolic link; refusing to replace it."
+        case .installFailed(let detail):
+            "Could not complete the operation: \(detail)"
         case .isDirectory(let path):
             "The path is a folder, not a file: \(path)"
         case .notARegularFile(let path):

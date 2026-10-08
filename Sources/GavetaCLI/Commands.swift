@@ -146,3 +146,40 @@ private struct ValidationFailure: LocalizedError {
     let errorDescription: String?
     init(_ message: String) { errorDescription = message }
 }
+
+struct Install: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        abstract: "Link this gaveta executable into /usr/local/bin so it is on your PATH.",
+        discussion: "From the app bundle: /Applications/Gaveta.app/Contents/Helpers/gaveta install"
+    )
+
+    @Option(help: "Where to create the link.") var linkPath = CommandLineInstaller.defaultLinkPath
+
+    func run() throws {
+        do {
+            let executable = Bundle.main.executablePath ?? CommandLine.arguments[0]
+            let installer = CommandLineInstaller(linkPath: linkPath)
+            switch try installer.install(target: executable) {
+            case .installed: print("Installed: \(linkPath) → \((try? PathCanonicalizer.canonicalize(executable)) ?? executable)")
+            case .alreadyInstalled: print("Already installed: \(linkPath)")
+            }
+        } catch {
+            throw fail(error)
+        }
+    }
+}
+
+struct Uninstall: ParsableCommand {
+    static let configuration = CommandConfiguration(abstract: "Remove the link created by `gaveta install`.")
+
+    @Option(help: "Link to remove.") var linkPath = CommandLineInstaller.defaultLinkPath
+
+    func run() throws {
+        do {
+            let removed = try CommandLineInstaller(linkPath: linkPath).uninstall()
+            print(removed ? "Removed: \(linkPath)" : "Nothing to remove: \(linkPath) does not exist.")
+        } catch {
+            throw fail(error)
+        }
+    }
+}
