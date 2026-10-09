@@ -57,17 +57,28 @@ struct MenuView: View {
             }
             .padding(14)
         } else {
-            ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(observer.folders) { folder in
-                        FolderRow(folder: folder) { paused in
-                            observer.setPaused(folder, paused: paused)
-                        }
-                    }
+            // A plain stack reports its exact height to the popover; a ScrollView does not, which
+            // left the panel at its old, taller size after folders were removed. Scroll only when
+            // the list is long enough to need a fixed height.
+            if observer.folders.count > Self.maxRowsWithoutScrolling {
+                ScrollView { rows }
+                    .frame(height: Self.scrollHeight)
+            } else {
+                rows
+            }
+        }
+    }
+
+    private static let maxRowsWithoutScrolling = 6
+    private static let scrollHeight: CGFloat = 340
+
+    private var rows: some View {
+        VStack(spacing: 0) {
+            ForEach(observer.folders) { folder in
+                FolderRow(folder: folder) { paused in
+                    observer.setPaused(folder, paused: paused)
                 }
             }
-            .frame(maxHeight: 320)
-            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
