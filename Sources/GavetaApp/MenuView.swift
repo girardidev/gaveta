@@ -6,6 +6,8 @@ struct MenuView: View {
     let observer: FolderObserver
     let loginItem: LoginItem
     @State private var copiedClient: MCPClient?
+    /// `nil` for the off-screen copy used only to measure the ideal height.
+    let sizer: PopoverSizer?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -16,7 +18,17 @@ struct MenuView: View {
             footer
         }
         .frame(width: 340)
+        .fitsHostingPanel(sizer)
+        .onChange(of: layoutKey) {
+            // Folders or messages changed while the panel is open: resize once SwiftUI has laid out.
+            DispatchQueue.main.async { sizer?.apply() }
+        }
         .onAppear { loginItem.refresh() }
+    }
+
+    /// Anything that changes the content's height.
+    private var layoutKey: [String] {
+        [String(observer.folders.count), observer.errorMessage ?? "", loginItem.errorMessage ?? ""]
     }
 
     // MARK: - Sections
