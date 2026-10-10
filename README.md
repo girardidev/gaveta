@@ -173,6 +173,7 @@ The version comes from the `VERSION` file (a test keeps it in sync with the serv
 ```sh
 swift test                  # tests (Swift Testing)
 Scripts/make-app.sh debug   # builds build/Gaveta.app from a debug build
+Scripts/check-popover.sh    # manual check of the menu bar popover with real clicks (needs Accessibility)
 ```
 
 ```

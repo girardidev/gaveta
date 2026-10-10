@@ -24,6 +24,7 @@ struct PopoverSizerTests {
             contentRect: NSRect(x: 100, y: 400, width: 340, height: 320),
             styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false
         )
+        hosting.sizingOptions = [] // like MenuBarExtra's panel: the window is not resized by its content
         window.contentView = hosting
         return (window, sizer)
     }
@@ -34,8 +35,9 @@ struct PopoverSizerTests {
         let topBefore = window.frame.maxY
         sizer.attach(window)
 
-        let fitting = try #require(window.contentView).fittingSize.height
+        let fitting = sizer.idealContentHeight
         #expect(fitting > 0)
+        #expect(window.contentView?.fittingSize.height == 0) // as in MenuBarExtra: the panel cannot measure itself
         #expect(window.frame.height < 320)
         #expect(abs(window.frame.height - fitting) < 1)
         #expect(window.frame.maxY == topBefore)
@@ -49,7 +51,7 @@ struct PopoverSizerTests {
             let (window, sizer) = try makePanel(folderCount: count)
             sizer.attach(window)
             heights.append(window.frame.height)
-            #expect(abs(window.frame.height - window.contentView!.fittingSize.height) < 1)
+            #expect(abs(window.frame.height - sizer.idealContentHeight) < 1)
         }
         // More folders, taller panel (an empty list shows a hint, so it is not compared).
         #expect(heights[1] < heights[2] && heights[2] < heights[3])
