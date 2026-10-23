@@ -51,8 +51,14 @@ public struct FolderStore: Sendable {
         }
     }
 
-    public func policy(home: URL = FileManager.default.homeDirectoryForCurrentUser) throws -> AccessPolicy {
-        AccessPolicy(folders: try load().folders, home: home)
+    /// With a `scope`, only the folders it lists reach the policy, so every path form
+    /// (alias, `~`, absolute) outside the scope is denied like any other outside path.
+    public func policy(
+        home: URL = FileManager.default.homeDirectoryForCurrentUser,
+        scope: FolderScope? = nil
+    ) throws -> AccessPolicy {
+        let folders = try load().folders
+        return AccessPolicy(folders: scope.map { scope in folders.filter(scope.matches) } ?? folders, home: home)
     }
 
     static func makeEncoder() -> JSONEncoder {

@@ -21,6 +21,7 @@ public enum GavetaServer {
             handler.call(name: params.name, arguments: params.arguments)
         }
 
+        handler.reportUnresolvedScope()
         try await server.start(transport: StdioTransport())
 
         // Tell the client when write_file appears or disappears (a readwrite folder was added,

@@ -34,6 +34,30 @@ struct ClientConfigTests {
         #expect(server["command"] as? String == path)
     }
 
+    @Test(arguments: MCPClient.allCases)
+    func scopeAddsFolderArgumentsAfterMcp(client: MCPClient) throws {
+        let json = ClientConfig.json(for: client, executable: "/usr/local/bin/gaveta", folders: ["site", "my notes"])
+        let object = try #require(JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
+        let expected = ["mcp", "--folder", "site", "--folder", "my notes"]
+        if client == .opencode {
+            let server = try #require(((object["mcp"] as? [String: Any])?["gaveta"]) as? [String: Any])
+            #expect(server["command"] as? [String] == ["/usr/local/bin/gaveta"] + expected)
+        } else {
+            let server = try #require(((object["mcpServers"] as? [String: Any])?["gaveta"]) as? [String: Any])
+            #expect(server["args"] as? [String] == expected)
+        }
+    }
+
+    @Test func withoutScopeTheSnippetIsUnchanged() {
+        for client in MCPClient.allCases {
+            #expect(
+                ClientConfig.json(for: client, executable: "/x/gaveta")
+                    == ClientConfig.json(for: client, executable: "/x/gaveta", folders: [])
+            )
+        }
+        #expect(ClientConfig.arguments() == ["mcp"])
+    }
+
     @Test func clientNamesRoundTrip() {
         #expect(MCPClient(rawValue: "claude-desktop") == .claudeDesktop)
         #expect(MCPClient.allCases.map(\.rawValue) == ["claude-desktop", "claude-code", "cursor", "opencode"])

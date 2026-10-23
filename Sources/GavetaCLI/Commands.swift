@@ -108,9 +108,13 @@ struct Mcp: AsyncParsableCommand {
         discussion: "Nothing but protocol messages is written to stdout. The log is at ~/Library/Logs/Gaveta/mcp.log."
     )
 
+    @Option(name: .customLong("folder"), help: "Expose only this shared folder (alias). Repeat for several. Default: all.")
+    var folders: [String] = []
+
     func run() async throws {
         do {
-            try await GavetaServer.runStdio()
+            let scope = folders.isEmpty ? nil : FolderScope(aliases: folders)
+            try await GavetaServer.runStdio(handler: ToolHandler(scope: scope))
         } catch {
             throw fail(error)
         }
@@ -126,17 +130,21 @@ struct Config: ParsableCommand {
 
     @Argument(help: "Client: claude-desktop, claude-code, cursor or opencode.") var client: String
 
+    @Option(name: .customLong("folder"), help: "Limit the project to this shared folder (alias). Repeat for several.")
+    var folders: [String] = []
+
     func run() throws {
         guard let mcpClient = MCPClient(rawValue: client.lowercased()) else {
             let valid = MCPClient.allCases.map(\.rawValue).joined(separator: ", ")
             throw fail(ValidationFailure("unknown client \"\(client)\". Use one of: \(valid)."))
         }
         let executable = ClientConfig.preferredExecutable(fallback: Bundle.main.executablePath ?? "gaveta")
-        print(ClientConfig.json(for: mcpClient, executable: executable))
+        print(ClientConfig.json(for: mcpClient, executable: executable, folders: folders))
 
         var hint = "Paste into: \(mcpClient.configHint)"
         if mcpClient == .claudeCode {
-            hint += "\nOr from the terminal: claude mcp add gaveta -- \"\(executable)\" mcp"
+            let args = ClientConfig.arguments(folders: folders).map { "\"\($0)\"" }.joined(separator: " ")
+            hint += "\nOr from the terminal: claude mcp add gaveta -- \"\(executable)\" \(args)"
         }
         FileHandle.standardError.write(Data((hint + "\n").utf8))
     }
