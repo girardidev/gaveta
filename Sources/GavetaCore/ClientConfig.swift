@@ -34,18 +34,24 @@ public enum ClientConfig {
         FileManager.default.isExecutableFile(atPath: installedPath) ? installedPath : fallback
     }
 
+    /// Arguments for `gaveta`: `mcp`, then `--folder <alias>` for each folder the project may see.
+    public static func arguments(folders: [String] = []) -> [String] {
+        ["mcp"] + folders.flatMap { ["--folder", $0] }
+    }
+
     /// JSON snippet to paste into the client's MCP configuration.
-    public static func json(for client: MCPClient, executable: String) -> String {
+    public static func json(for client: MCPClient, executable: String, folders: [String] = []) -> String {
+        let args = arguments(folders: folders)
         let object: [String: Any]
         switch client {
         case .claudeDesktop, .cursor:
-            object = ["mcpServers": ["gaveta": ["command": executable, "args": ["mcp"]]]]
+            object = ["mcpServers": ["gaveta": ["command": executable, "args": args]]]
         case .claudeCode:
-            object = ["mcpServers": ["gaveta": ["type": "stdio", "command": executable, "args": ["mcp"]]]]
+            object = ["mcpServers": ["gaveta": ["type": "stdio", "command": executable, "args": args]]]
         case .opencode:
             object = [
                 "$schema": "https://opencode.ai/config.json",
-                "mcp": ["gaveta": ["type": "local", "command": [executable, "mcp"], "enabled": true]],
+                "mcp": ["gaveta": ["type": "local", "command": [executable] + args, "enabled": true]],
             ]
         }
         let data = (try? JSONSerialization.data(

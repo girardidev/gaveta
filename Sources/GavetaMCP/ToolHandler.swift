@@ -8,15 +8,18 @@ public struct ToolHandler: Sendable {
     public let store: FolderStore
     public let home: URL
     public let log: ActivityLog
+    public let scope: FolderScope?
 
     public init(
         store: FolderStore = FolderStore(),
         home: URL = FileManager.default.homeDirectoryForCurrentUser,
-        log: ActivityLog = ActivityLog()
+        log: ActivityLog = ActivityLog(),
+        scope: FolderScope? = nil
     ) {
         self.store = store
         self.home = home
         self.log = log
+        self.scope = scope
     }
 
     // MARK: - Tool definitions
@@ -80,10 +83,21 @@ public struct ToolHandler: Sendable {
         annotations: Tool.Annotations(readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false)
     )
 
-    /// True when the current `folders.json` has an active `readwrite` folder.
+    /// True when the current `folders.json` has an active `readwrite` folder within the scope.
     public func isWriteEnabled() -> Bool {
-        guard let file = try? store.load() else { return false }
-        return file.folders.contains { !$0.paused && $0.mode == .readwrite }
+        guard let policy = try? store.policy(home: home, scope: scope) else { return false }
+        return policy.activeFolders.contains { $0.mode == .readwrite }
+    }
+
+    /// Warns about scope aliases that match no active folder. Not fatal: nothing is exposed for them,
+    /// and a folder added or resumed later becomes visible without a restart.
+    public func reportUnresolvedScope() {
+        guard let scope else { return }
+        let folders = (try? store.load().folders) ?? []
+        for alias in scope.unresolved(in: folders) {
+            FileHandle.standardError.write(Data("gaveta: scope folder \"\(alias)\" is not an active shared folder.\n".utf8))
+            log.record(tool: "scope", target: alias, outcome: "unresolved")
+        }
     }
 
     /// Reloaded on every `tools/list`, so `write_file` appears only while it can work.
@@ -115,7 +129,7 @@ public struct ToolHandler: Sendable {
     }
 
     private func dispatch(name: String, arguments: [String: Value]) throws -> CallTool.Result {
-        let policy = try store.policy(home: home)
+        let policy = try store.policy(home: home, scope: scope)
         let files = FileTools(policy: policy)
 
         switch name {

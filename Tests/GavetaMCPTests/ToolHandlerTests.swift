@@ -139,4 +139,74 @@ final class ToolHandlerTests {
         #expect(log.contains("read_file\tsite/escape\terror"))
         #expect(!log.contains("world"))
     }
+
+    // MARK: - Folder scope
+
+    /// Adds `notes` (readwrite, with a file) next to `site`, and returns a handler scoped to `aliases`.
+    private func scopedHandler(_ aliases: [String]) throws -> ToolHandler {
+        try FileManager.default.createDirectory(atPath: root + "/notes", withIntermediateDirectories: true)
+        try "todo\nworld\n".write(toFile: root + "/notes/todo.md", atomically: true, encoding: .utf8)
+        try FolderManager(store: store, home: URL(filePath: root + "/home")).add(path: root + "/notes", mode: .readwrite)
+        return ToolHandler(
+            store: store, home: URL(filePath: root + "/home"), log: ActivityLog(fileURL: logURL),
+            scope: FolderScope(aliases: aliases)
+        )
+    }
+
+    @Test func scopeLimitsListedFolders() throws {
+        let scoped = try scopedHandler(["site"])
+        let result = text(scoped.call(name: "list_folders", arguments: nil))
+        #expect(result.contains("\"alias\" : \"site\""))
+        #expect(!result.contains("notes"))
+    }
+
+    @Test func scopeDeniesOutOfScopeAliasAndAbsolutePath() throws {
+        let scoped = try scopedHandler(["site"])
+        #expect(scoped.call(name: "read_file", arguments: ["path": "notes/todo.md"]).isError == true)
+        #expect(scoped.call(name: "read_file", arguments: ["path": .string(root + "/notes/todo.md")]).isError == true)
+        #expect(scoped.call(name: "read_file", arguments: ["path": "site/a.txt"]).isError == false)
+    }
+
+    @Test func scopedSearchWithoutFolderStaysInScope() throws {
+        let scoped = try scopedHandler(["site"])
+        let found = text(scoped.call(name: "search", arguments: ["query": "world"]))
+        #expect(found.contains("site/a.txt"))
+        #expect(!found.contains("notes"))
+    }
+
+    @Test func writeToolFollowsTheScope() throws {
+        let readOnlyScope = try scopedHandler(["site"])
+        #expect(!readOnlyScope.isWriteEnabled())
+        #expect(!readOnlyScope.availableTools().map(\.name).contains("write_file"))
+        #expect(readOnlyScope.call(name: "write_file", arguments: ["path": "notes/x.txt", "content": "x"]).isError == true)
+
+        let writableScope = ToolHandler(
+            store: store, home: URL(filePath: root + "/home"), log: ActivityLog(fileURL: logURL),
+            scope: FolderScope(aliases: ["notes"])
+        )
+        #expect(writableScope.isWriteEnabled())
+        #expect(writableScope.call(name: "write_file", arguments: ["path": "notes/x.txt", "content": "x"]).isError == false)
+    }
+
+    @Test func scopedAliasAddedAfterStartupBecomesVisible() throws {
+        let scoped = ToolHandler(
+            store: store, home: URL(filePath: root + "/home"), log: ActivityLog(fileURL: logURL),
+            scope: FolderScope(aliases: ["site", "notes"])
+        )
+        #expect(!text(scoped.call(name: "list_folders", arguments: nil)).contains("notes"))
+        _ = try scopedHandler(["site", "notes"])
+        #expect(text(scoped.call(name: "list_folders", arguments: nil)).contains("\"alias\" : \"notes\""))
+    }
+
+    @Test func reportsUnresolvedScopeAliasInTheLog() throws {
+        let scoped = ToolHandler(
+            store: store, home: URL(filePath: root + "/home"), log: ActivityLog(fileURL: logURL),
+            scope: FolderScope(aliases: ["site", "sitee"])
+        )
+        scoped.reportUnresolvedScope()
+        let log = try String(contentsOf: logURL, encoding: .utf8)
+        #expect(log.contains("scope\tsitee\tunresolved"))
+        #expect(!log.contains("scope\tsite\t"))
+        #expect(scoped.call(name: "list_folders", arguments: nil).isError == false)
+    }
 }

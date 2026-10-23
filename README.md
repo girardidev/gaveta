@@ -95,6 +95,30 @@ Example (Claude Desktop and Cursor):
 
 Restart the client after editing its configuration. `gaveta config` uses `/usr/local/bin/gaveta` when that link exists. You can also copy the configuration from the app's menu.
 
+### Per project
+
+By default an agent sees every active shared folder. To give a project only some of them, register the server in the project's own config (`.mcp.json`, `opencode.json`, ...) and list the aliases with `--folder`:
+
+```sh
+gaveta config opencode --folder site --folder notes
+```
+
+```json
+{
+  "mcp": {
+    "gaveta": {
+      "type": "local",
+      "command": ["/usr/local/bin/gaveta", "mcp", "--folder", "site", "--folder", "notes"],
+      "enabled": true
+    }
+  }
+}
+```
+
+The list can only **narrow** access: a project sees the folders that are both shared (and not paused) in `folders.json` and listed by `--folder`. Listing an alias that is not shared grants nothing, so a committed `.mcp.json` cannot give a project more than you shared. Everything else follows the list too: other folders' aliases, `~` and absolute paths are denied, `search` stays inside it, and `write_file` is offered only if a listed folder is `--write`.
+
+An alias that is not an active shared folder is reported on stderr and in the log, and the server keeps running. Without `--folder`, nothing changes.
+
 ## MCP tools
 
 Paths can be absolute, start with `~`, or use the alias: `site/src/index.html`.
@@ -108,7 +132,7 @@ Paths can be absolute, start with `~`, or use the alias: `site/src/index.html`.
 | `search` | Searches text in file names and contents (`folder`, `glob`, `case_sensitive`). Up to 200 results. Skips `.git`, `node_modules`, `.DS_Store`, symlinks and binaries. |
 | `write_file` | Creates or overwrites a text file (up to 1 MB). **Only exists while a `--write` folder is active** and only writes inside such folders. |
 
-Paused folders behave as if they did not exist.
+Paused folders behave as if they did not exist. So do folders left out of a per-project `--folder` list.
 
 ## Security
 

@@ -2,6 +2,24 @@
 .swiftpm/
 *.xcodeproj
 xcuserdata/
+*.xcuserstate
+DerivedData/
 .DS_Store
 build/
 dist/
+
+# Release signing and notarization
+.env
+.env.*
+*.p12
+*.cer
+*.mobileprovision
+
+# Editors, logs and temporary files
+.idea/
+.vscode/
+*.log
+*.swp
+
+# Local knowledge graph (regenerate with `graphify update .`)
+graphify-out/
